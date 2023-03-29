@@ -1,0 +1,31 @@
+body{
+    display: flex;
+    justify-content: center;
+}
+#game h1{
+    font-size: 55px;
+    font-family: MV Boli,sans-serif;
+    text-align: center;
+    margin:auto
+}
+#board{
+    display: grid;
+    grid-template-columns: auto auto auto auto auto auto auto auto;
+    border: 1px solid black;
+    text-align: center;
+}
+#mezo{
+    height: 5rem;
+    width: 5rem;
+    background-color:forestgreen;
+    border: 1px solid black;
+    line-height: 5rem;
+    
+}
+#mezo2{
+    height: 5rem;
+    width: 5rem;
+    background-color:bisque;
+    line-height: 5rem;
+    border: 1px solid black;
+}
