@@ -15,17 +15,15 @@ body{
     text-align: center;
 }
 #mezo{
-    height: 5rem;
-    width: 5rem;
     background-color:forestgreen;
-    border: 1px solid black;
-    line-height: 5rem;
-    
 }
 #mezo2{
+    background-color:bisque;
+}
+.squares{
     height: 5rem;
     width: 5rem;
-    background-color:bisque;
+    border: 0.5px solid black;
     line-height: 5rem;
-    border: 1px solid black;
+    cursor: pointer;
 }
