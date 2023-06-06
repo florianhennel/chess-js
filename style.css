@@ -1,6 +1,11 @@
 body{
     display: flex;
     justify-content: center;
+    text-align: center;
+    align-items: center;
+}
+.hint{
+    background-color: pink !important;
 }
 #game h1{
     font-size: 55px;
