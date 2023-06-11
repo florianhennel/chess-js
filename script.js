@@ -5,6 +5,7 @@ function main() {
       this.color = color;
       this.piece = piece;
       this.coordinate = coordinate;
+      this.moved = 0;
     }
   }
   const squares = document.querySelectorAll(".squares");
@@ -13,146 +14,615 @@ function main() {
   const status = document.getElementById("status");
   const types = ["pawn", "rook", "knight", "bishop", "queen", "king"];
   const styleSheet = document.styleSheets[0];
+  const pawnChoices = document.querySelectorAll("#pawnChoices");
+  const choices = document.querySelectorAll("#choices");
   var rules = styleSheet.cssRules || styleSheet.rules;
   let pieces = [[], [], [], [], [], [], [], [], []];
   let hints = [];
   let white = true;
+  let selectedPiece;
+  let kings = {
+    white:61,
+    black:5,
+  }
+  let castleLeft = false;
+  let castleRight = false;
 
   startGame();
 
   function startGame() {
-    hints = [];
+    resetHints();
     setBoard();
-    whitesTurn();
+    Turn();
   }
-   function whitesTurn() {
+   function Turn() {
+    console.log(white ? "Whites turn." : "Blacks turn.");
+    console.log(`${white? "White":"Black"}s in check? ${Check()}`);
     squares.forEach((square) => {
       square.addEventListener("click", clickSquare);
     });
   }
-  function resetColor(idName) {
-    let color;
-    for (let i = 0; i < rules.length; i++) {
-      if (rules[i].selectorText == `#${idName}`) {
-        color = rules[i].style.getPropertyValue("background-color");
-      }
-    }
-    return color;
-  }
-  function clickSquare(event) {
-
+  async function clickSquare(event) {
+    resetHints();
     squares.forEach((square) => {
       square.removeEventListener("click", clickSquare);
     });
     const index = this.getAttribute("cellindex");
-    const idName = this.getAttribute("id");
-    const selectedPiece = clickOnPiece(index);
-    console.log(index);
-    if (selectedPiece != false) {
+    selectedPiece = clickOnPiece(index);
+    if (selectedPiece != undefined) {
       if (white && selectedPiece.color == "white") {
         this.style.backgroundColor = "rgba(100%, 100%, 0%, 1)";
-        whiteMoves(selectedPiece);
+        movePiece();
+      }
+      else if(!white && selectedPiece.color == "black"){
+        this.style.backgroundColor = "rgba(100%, 100%, 0%, 1)";
+        movePiece();
+      }
+      else{
+        Turn();
       }
     }
-    board.addEventListener("click", (e) => {
-      if (!this.contains(e.target)) {
-        this.style.backgroundColor = resetColor(idName);
-      }
-    });
-    this.removeEventListener("click",clickSquare);
+    else{
+      Turn();
+    }
   }
-
-  function whiteMoves(selectedPiece) {
-
+  function movePiece() {
+    console.log(selectedPiece.moved);
     switch (selectedPiece.piece) {
+      
       case "pawn":
-        pawnMove(selectedPiece);
+        pawnMove();
+        break;
       case "rook":
-
+        rookMove();
+        break;
       case "knight":
-
+        knightMove();
+        break;
       case "bishop":
-
+        bishopMove();
+        break;
       case "queen":
-
+        bishopMove();
+        rookMove();
+        break;
       case "king":
+        kingMove();
+        castling();
+        break;
     }
+    
+    hints = hints.filter(function (hint){
+      return tryHint(hint);
+    });
+    showHints();
+    squares.forEach((square) => {
+      square.addEventListener("click", move);
+    });
+    
+    
   }
-  function pawnMove(selectedPiece) {
+  function kingMove() { 
+    let kingHints = [];
     let co = selectedPiece.coordinate;
     let sP = {
-      y: selectedPiece.coordinate / 8 == 0 ? 1 : Math.ceil(co / 8),
-      x: selectedPiece.coordinate % 8 == 0 ? 8 : co % 8,
+      y: co / 8 == 0 ? 1 : Math.ceil(co / 8),
+      x: co % 8 == 0 ? 8 : co % 8,
+    };
+
+    if ((sP.y-1>=1&&sP.x-1>=1)&&(pieces[sP.y-1][sP.x-1] == undefined || pieces[sP.y-1][sP.x-1].color == (white?"black":"white")) ) {
+      kingHints.push(co-9);
+    }
+    if ((sP.y-1>=1) && (pieces[sP.y-1][sP.x] == undefined || pieces[sP.y-1][sP.x].color == (white?"black":"white"))) {
+      kingHints.push(co-8);
+    }
+    if ((sP.y-1>=1&&sP.x+1<=8) && (pieces[sP.y-1][sP.x+1] == undefined || pieces[sP.y-1][sP.x+1].color == (white?"black":"white")) ) {
+      kingHints.push(co-7);
+    }
+    if ((sP.x-1>=1) && (pieces[sP.y][sP.x-1] == undefined || pieces[sP.y][sP.x-1].color == (white?"black":"white")) ) {
+      kingHints.push(co-1);
+    }
+
+    if ((sP.x+1<=8) && (pieces[sP.y][sP.x+1] == undefined || pieces[sP.y][sP.x+1].color == (white?"black":"white")) ) {
+      kingHints.push(co+1);
+    }
+    if ((sP.y+1<=8&&sP.x-1>=1) && (pieces[sP.y+1][sP.x-1] == undefined || pieces[sP.y+1][sP.x-1].color == (white?"black":"white")) ) {
+      kingHints.push(co+7);
+    }
+    if ((sP.y+1<=8) && (pieces[sP.y+1][sP.x] == undefined || pieces[sP.y+1][sP.x].color == (white?"black":"white")) ) {
+      kingHints.push(co+8);
+    }
+    if ((sP.y+1<=8&&sP.x+1<=8) && (pieces[sP.y+1][sP.x+1] == undefined || pieces[sP.y+1][sP.x+1].color == (white?"black":"white"))) {
+      kingHints.push(co+9);
+    }    
+    hints = kingHints;
+  }
+  function knightMove(){
+    let co = selectedPiece.coordinate;
+    let sP = {
+      y: co / 8 == 0 ? 1 : Math.ceil(co / 8),
+      x: co % 8 == 0 ? 8 : co % 8,
+    };
+    if ((sP.y-2>=1&&sP.x+1<=8)&&(pieces[sP.y-2][sP.x+1] == undefined || pieces[sP.y-2][sP.x+1].color == (selectedPiece.color == "white" ? "black" : "white"))) {
+      hints.push(co-15);
+    }
+    if ((sP.y-2>=1&&sP.x-1>=1) && (pieces[sP.y-2][sP.x-1] == undefined || pieces[sP.y-2][sP.x-1].color == (selectedPiece.color == "white" ? "black" : "white"))) {
+      hints.push(co-17);
+    }
+
+    if ((sP.y+1<=8&&sP.x-2>=1) && (pieces[sP.y+1][sP.x-2] == undefined || pieces[sP.y+1][sP.x-2].color == (selectedPiece.color == "white" ? "black" : "white"))) {
+      hints.push(co+6);
+    }
+    if ((sP.y-1>=1&&sP.x-2>=1) && (pieces[sP.y-1][sP.x-2] == undefined || pieces[sP.y-1][sP.x-2].color == (selectedPiece.color == "white" ? "black" : "white"))) {
+      hints.push(co-10);
+    }
+
+    if ((sP.y+2<=8&&sP.x-1>=1) && (pieces[sP.y+2][sP.x-1] == undefined || pieces[sP.y+2][sP.x-1].color == (selectedPiece.color == "white" ? "black" : "white"))) {
+      hints.push(co+15);
+    }
+    if ((sP.y+2<=8&&sP.x+1<=8) && (pieces[sP.y+2][sP.x+1] == undefined || pieces[sP.y+2][sP.x+1].color == (selectedPiece.color == "white" ? "black" : "white"))) {
+      hints.push(co+17);
+    }
+
+    if ((sP.y+1<=8&&sP.x+2<=8) && (pieces[sP.y+1][sP.x+2] == undefined || pieces[sP.y+1][sP.x+2].color == (selectedPiece.color == "white" ? "black" : "white"))) {
+      hints.push(co+10);
+    }
+    if ((sP.y-1>=1&&sP.x+2<=8) && (pieces[sP.y-1][sP.x+2] == undefined || pieces[sP.y-1][sP.x+2].color == (selectedPiece.color == "white" ? "black" : "white"))) {
+      hints.push(co-6);
+    }
+  }
+  function bishopMove(){
+    let co = selectedPiece.coordinate;
+    let sP = {
+      y: co / 8 == 0 ? 1 : Math.ceil(co / 8),
+      x: co % 8 == 0 ? 8 : co % 8,
+    };
+    let forwardLeft = true;
+    let backwardLeft = true;
+    let forwardRight = true;
+    let backwardRight = true;
+    for (let i = 1; i < 7; i++) {
+      if(forwardLeft && (sP.x-i>=1 && sP.y-i>=1) ){
+        if(pieces[sP.y-i][sP.x-i] == undefined){
+          hints.push(co-((i*8)+i));
+        }
+        else if(pieces[sP.y-i][sP.x-i].color == (selectedPiece.color == "white" ? "black" : "white")){
+          hints.push(co-(i*8+i));
+          forwardLeft = false;
+        }
+        else{forwardLeft = false;}
+      }
+      if(backwardLeft && (sP.y+i<=8 && sP.x-i>=1)){
+        if(pieces[sP.y+i][sP.x-i] == undefined){
+          hints.push(co+((i*8)-i));
+        }
+        else if(pieces[sP.y+i][sP.x-i].color == (selectedPiece.color == "white" ? "black" : "white")){
+          hints.push(co+((i*8)-i));
+          backwardLeft = false;
+        }
+        else{backwardLeft = false;}
+      }
+      if(forwardRight && sP.y-i>=1 && sP.x+i<=8){
+        if(pieces[sP.y-i][sP.x+i] == undefined){
+          hints.push(co-((i*8)-i));
+        }
+        else if(pieces[sP.y-i][sP.x+i].color == (selectedPiece.color == "white" ? "black" : "white")){
+          hints.push(co-((i*8)-i));
+          forwardRight = false;
+        }
+        else{forwardRight = false;}
+      }
+      if(backwardRight && sP.y+i<=8 && sP.x+i<=8){
+        if(pieces[sP.y+i][sP.x+i] == undefined){
+          hints.push(co+((i*8)+i));
+        }
+        else if(pieces[sP.y+i][sP.x+i].color == (selectedPiece.color == "white" ? "black" : "white")){
+          hints.push(co+((i*8)+i));
+          backwardRight = false;
+        }
+        else{backwardRight = false;}
+      }
+      
+    }
+  }
+  function castling(){
+    let co = selectedPiece.coordinate;
+    if (selectedPiece.moved == 0 && clickOnPiece(co-4).moved == 0) {
+      if(clickOnPiece(co-3) == undefined && clickOnPiece(co-2) == undefined && clickOnPiece(co-1) == undefined){
+        hints.unshift(co-4);
+        castleLeft = true;
+        
+      }
+    }
+    if(selectedPiece.moved == 0 && clickOnPiece(co+3).moved == 0){
+      if(clickOnPiece(co+1) == undefined && clickOnPiece(co+2) == undefined){
+        hints.unshift(co+3);
+        castleRight = true;
+      }
+    }
+  }
+  function rookMove(){
+    let co = selectedPiece.coordinate;
+    let sP = {
+      y: co / 8 == 0 ? 1 : Math.ceil(co / 8),
+      x: co % 8 == 0 ? 8 : co % 8,
+    };
+    let backward = true;
+    let forward = true;
+    let right = true;
+    let left = true;
+    for (let i = 1; i <= 7; i++) {
+      if(backward && (sP.y+i<=8)){
+        if (pieces[sP.y+i][sP.x] == undefined) {
+          hints.push(co+(i*8));
+        }
+        else if(pieces[sP.y+i][sP.x].color == (selectedPiece.color == "white" ? "black" : "white")){
+          hints.push(co+(i*8));
+          backward = false;
+        }
+        else{backward = false;}
+      }
+      
+      if(forward && (sP.y-i>=1)){
+        if (pieces[sP.y-i][sP.x] == undefined) {
+          hints.push(co-(i*8));
+        }
+        else if(pieces[sP.y-i][sP.x].color == (selectedPiece.color == "white" ? "black" : "white")){
+          hints.push(co-(i*8));
+          forward = false;
+        }
+        else{forward = false;}
+      }
+      if(right && (sP.x+i<=8)){
+        if (pieces[sP.y][sP.x+i] == undefined) {
+          hints.push(co+i);
+        }
+        else if(pieces[sP.y][sP.x+i].color == (selectedPiece.color == "white" ? "black" : "white")){
+          hints.push(co+i);
+          right = false;
+        }
+        else{right = false;}
+      }
+      if(left && (sP.x-i>=1)){
+        if (( pieces[sP.y][sP.x-i] == undefined)) {
+        hints.push(co-i);
+        }
+        else if(pieces[sP.y][sP.x-i].color == (selectedPiece.color == "white" ? "black" : "white")){
+          hints.push(co-i);
+          left = false;
+        }
+        else{left = false;}
+      }
+    }
+  }
+  function pawnTake(){
+    let co = selectedPiece.coordinate;
+    let sP = {
+      y: co / 8 == 0 ? 1 : Math.ceil(co / 8),
+      x: co % 8 == 0 ? 8 : co % 8,
+    };
+    if (selectedPiece.color == "white") {
+      if (sP.x-1>=1 && sP.y-1>=1) {
+        hints.push(co-9)
+      }
+      if(sP.x+1<=8 && sP.y-1>=1){
+        hints.push(co-7);
+      }
+    }
+    else{
+      if (sP.y+1<=8 && sP.x-1>=1) {
+        hints.push(co+7)
+      }
+      if(sP.y+1<=8 && sP.x+1<=8){
+        hints.push(co+9);
+      }
+    }
+  }
+  function pawnMove() {
+    let co = selectedPiece.coordinate;
+    let sP = {
+      y: co / 8 == 0 ? 1 : Math.ceil(co / 8),
+      x: co % 8 == 0 ? 8 : co % 8,
     };
     if (selectedPiece.color == "white") {
       if (pieces[sP.y - 1][sP.x] == undefined) {
         hints.push(co - 8);
       }
-      if (co < 67 && co > 48) {
+      if (co < 67 && co > 48 && pieces[sP.y-1][sP.x] == undefined && pieces[sP.y-2][sP.x] == undefined) {
         hints.push(co - 16);
+        
       }
-      if (co % 8 > 1) {
-        let possibleTake = [
-          pieces[sP.y - 1][sP.x - 1],
-          pieces[sP.y - 1][sP.x + 1],
-        ];
-        if (
-          possibleTake.forEach((pos) => {
-            if (pos != undefined) {
-              if (pos.color == "black") {
-                hints.push(pos.coordinate);
-              }
-            }
-          })
-        ) {
-        }
+      pawnTake();
+      let count = hints.length-1;
+      if (hints.includes(co-9) && (pieces[sP.y-1][sP.x-1] == undefined || pieces[sP.y-1][sP.x-1].color == "white")) {
+        sP.x == 8 ? hints.pop() : hints.splice(count-1,1);
+      }
+      if(hints.includes(co-7) && (pieces[sP.y-1][sP.x+1] == undefined || pieces[sP.y-1][sP.x+1].color == "white")) {
+        hints.pop();
       }
     }
-    hints.forEach((element) => {
-      squares[element - 1].classList.add("hint");
-    });
-    squares.forEach((square) => {
-      square.addEventListener("click", move);
-    });
-    function move(){
-      squares.forEach((square) => {
-        square.removeEventListener("click", move);
+    else{
+      if (pieces[sP.y + 1][sP.x] == undefined) {
+        hints.push(co + 8);
+      }
+      if (co < 17 && co > 8 && pieces[sP.y+1][sP.x] == undefined && pieces[sP.y+2][sP.x] == undefined) {
+        hints.push(co + 16);
+      }
+      pawnTake();
+      let count = hints.length-1;
+      if(hints.includes(co+7) && (pieces[sP.y+1][sP.x-1] == undefined || pieces[sP.y+1][sP.x-1].color == "black")) {
+        sP.x == 8 ? hints.pop() : hints.splice(count-1,1);
+      }
+      if (hints.includes(co+9) && (pieces[sP.y+1][sP.x+1] == undefined || pieces[sP.y+1][sP.x+1].color == "black")) {
+        hints.pop();
+      }
+    }
+  }
+  function pawnAtLastRow(){
+      return new Promise((resolve) =>{
+        function handleClick(){
+          let pieceName = this.classList[0];
+          resolve(pieceName);
+          choices.forEach(c =>{
+            c.removeEventListener("click",handleClick);
+          })
+        }
+        choices.forEach(piece => {
+          piece.addEventListener("click",handleClick);
+        });
       });
-      let index = this.getAttribute("cellIndex");
-      if (hints.includes(Number(index))) {
-        let newPlace = {
-          y: Number(index / 8 == 0 ? 1 : Math.ceil(index / 8)),
-          x: Number(index % 8 == 0 ? 8 : index % 8),
-        };
-        let old = pieces[sP.y][sP.x];
-        let moved = sP.y - newPlace.y;
-        console.log("moved: ", moved);
-        pieces[newPlace.y][newPlace.x] = new Piece(old.color,old.piece,Number(index));
+    }
+  function Check(){
+    let defaultHints = hints;
+    hints = [];
+    let prev = selectedPiece;
+    pieces.forEach(row =>{
+      row.forEach(piece =>{
+        if(piece != undefined && piece.color == (white ? "black" : "white")){
+            selectedPiece = piece;
+            switch (piece.piece) {
+              case "pawn":
+                pawnTake();break;
+              case "rook":
+                rookMove();break;
+              case "knight":
+                knightMove();break;
+              case "bishop":
+                bishopMove();break;
+              case "queen":
+                bishopMove();
+                rookMove();
+                break;
+            }
+        }
+      });
+    });
+    const result= white? hints.includes(Number(kings.white)):hints.includes(Number(kings.black));
+    
+    if (result) {
+      pieces.forEach(rows => {
+        rows.forEach(piece =>{
+          if(piece != undefined && piece.color == (white ? "white" : "black")){
+            selectedPiece = piece;
+            switch (piece.piece) {
+              case "pawn":
+                pawnTake();break;
+              case "rook":
+                rookMove();break;
+              case "knight":
+                knightMove();break;
+              case "bishop":
+                bishopMove();break;
+              case "queen":
+                bishopMove();
+                rookMove();
+                break;
+            }
+          }
+        })
+      });
+      
+    }
+    if (hints.length == 0) {
+      CheckMate();
+    }
+    selectedPiece = prev;
+    hints = defaultHints;
+    return result;
+  }
+  async function move(){
+    squares.forEach((square) => {
+      square.removeEventListener("click", move);
+    });
+    let index = this.getAttribute("cellIndex");
+    let co = selectedPiece.coordinate;
+    let sP = {
+      y: co / 8 == 0 ? 1 : Math.ceil(co / 8),
+      x: co % 8 == 0 ? 8 : co % 8,
+    };
+    if ((selectedPiece.piece == "king" && clickOnPiece(index).piece == "rook") && clickOnPiece(index) != undefined) {
+      let takenPiece = clickOnPiece(index);
+      let left = co>takenPiece.coordinate;
+      if (left) {
+        let king = pieces[sP.y][sP.x];
+        let rook = pieces[sP.y][sP.x-4]
+        pieces[sP.y][sP.x-2] = king;
+        pieces[sP.y][sP.x-1] = rook;
         pieces[sP.y][sP.x] = undefined;
-        refreshImages();
-        resetHints();
-        squares[selectedPiece.coordinate-1].setAttribute("style",null);
+        pieces[sP.y][sP.x-4] = undefined;
 
+        white? kings.white = co-2 : kings.black = co-2;
+        pieces[sP.y][sP.x-2].coordinate = co-2
+        pieces[sP.y][sP.x-1].coordinate = co-1;
       }
       else{
-        resetHints();
-        const selectedPiece2 = clickOnPiece(index);
-        if (selectedPiece2 != false && selectedPiece2 != selectedPiece) {
-          if (white && selectedPiece2.color == "white") {
-              this.style.backgroundColor = "rgba(100%, 100%, 0%, 1)";
-              squares[selectedPiece.coordinate-1].setAttribute("style",null);
-              whiteMoves(selectedPiece2);
+        let king = pieces[sP.y][sP.x];
+        let rook = pieces[sP.y][sP.x+3]
+        pieces[sP.y][sP.x+2] = king;
+        pieces[sP.y][sP.x+1] = rook;
+        pieces[sP.y][sP.x] = undefined;
+        pieces[sP.y][sP.x+3] = undefined;
+
+        white? kings.white = co+2 : kings.black = co+2;
+        pieces[sP.y][sP.x+2].coordinate = co+2
+        pieces[sP.y][sP.x+1].coordinate = co+1;
+      }
+      refreshImages();
+      refreshImages();
+      resetHints();
+      squares[co-1].setAttribute("style",null);
+      if(selectedPiece.piece == "king"){
+        white ? kings.white = index : kings.black = index;
+      }
+      white = !white;
+      console.log(pieces);
+      Turn();
+    }
+    else if (hints.includes(Number(index))) {
+      let newPlace = {
+        y: Number(index / 8 == 0 ? 1 : Math.ceil(index / 8)),
+        x: Number(index % 8 == 0 ? 8 : index % 8),
+      };
+      let old = pieces[sP.y][sP.x];
+      if ((index <9 || index > 56) && selectedPiece.piece == "pawn"){
+        let i = 5;
+        pawnChoices.forEach(div =>{
+          div.style.display = "flex";  
+          if(!white){
+            div.setAttribute("style",`grid-area: ${i}/1/${i}/1;display:flex`)
+            div.firstChild.setAttribute("src",`./pictures/black${div.firstChild.classList[0]}.png`)
           }
-          else{
-            whitesTurn();
-          }
+          i+=1;
+        })
+        let p = await pawnAtLastRow();
+        pieces[newPlace.y][newPlace.x] = new Piece(old.color,p,Number(index));
+        pawnChoices.forEach(div => {
+          div.style.display = "none";
+        });
+        
+      }
+      else{
+        
+        pieces[newPlace.y][newPlace.x] = old;
+        pieces[newPlace.y][newPlace.x].coordinate = Number(index);
+        pieces[newPlace.y][newPlace.x].moved= 1+pieces[newPlace.y][newPlace.x].moved;
+      }
+      pieces[sP.y][sP.x] = undefined;
+
+      refreshImages();
+      resetHints();
+      squares[co-1].setAttribute("style",null);
+      if(selectedPiece.piece == "king"){
+        white ? kings.white = index : kings.black = index;
+      }
+      white = !white;
+      Turn();
+
+    }
+    else{
+      resetHints();
+      const selectedPiece2 = clickOnPiece(index);
+      if (selectedPiece2 != undefined && selectedPiece2 != selectedPiece) {
+        if (white && selectedPiece2.color == "white") {
+            this.style.backgroundColor = "rgba(100%, 100%, 0%, 1)";
+            squares[selectedPiece.coordinate-1].setAttribute("style",null);
+            selectedPiece = selectedPiece2;
+            movePiece(selectedPiece2);
+        }
+        else if(!white && selectedPiece2.color == "black"){
+          this.style.backgroundColor = "rgba(100%, 100%, 0%, 1)";
+          squares[selectedPiece.coordinate-1].setAttribute("style",null);
+          selectedPiece = selectedPiece2;
+          movePiece(selectedPiece2);
         }
         else{
           squares[selectedPiece.coordinate-1].setAttribute("style",null);
-          whitesTurn();
+          Turn();
         }
       }
+      else{
+        squares[selectedPiece.coordinate-1].setAttribute("style",null);
+        Turn();
+      }
     }
+  }
+  function tryHint(index) {
+    let takenPiece = clickOnPiece(index);
+    let co = selectedPiece.coordinate;
+    let sP = {
+      y: co / 8 == 0 ? 1 : Math.ceil(co / 8),
+      x: co % 8 == 0 ? 8 : co % 8,
+    };
+    let okay;
+    if (castleLeft) {
+      let king = pieces[sP.y][sP.x];
+      let rook = pieces[sP.y][sP.x-4]
+      pieces[sP.y][sP.x-2] = king;
+      pieces[sP.y][sP.x-1] = rook;
+      pieces[sP.y][sP.x] = undefined;
+      pieces[sP.y][sP.x-4] = undefined;
+
+      white? kings.white = co-2 : kings.black = co-2;
+      pieces[sP.y][sP.x-1].coordinate = co-1;
+      okay = !(Check());
+
+      pieces[sP.y][sP.x] = king;
+      pieces[sP.y][sP.x-4] = rook;
+      pieces[sP.y][sP.x-2] = undefined;
+      pieces[sP.y][sP.x-1] = undefined;
+
+      white? kings.white = co : kings.black = co;
+      castleLeft = false;
+      return okay;
+    }
+    else if (castleRight) {
+      let king = pieces[sP.y][sP.x];
+      let rook = pieces[sP.y][sP.x+3]
+      pieces[sP.y][sP.x+2] = king;
+      pieces[sP.y][sP.x+1] = rook;
+      pieces[sP.y][sP.x] = undefined;
+      pieces[sP.y][sP.x+3] = undefined;
+
+      white? kings.white = co+2 : kings.black = co+2;
+      pieces[sP.y][sP.x+1].coordinate = co+1;
+      okay = !(Check());
+
+      pieces[sP.y][sP.x] = king;
+      pieces[sP.y][sP.x+3] = rook;
+      pieces[sP.y][sP.x+2] = undefined;
+      pieces[sP.y][sP.x+1] = undefined;
+
+      white? kings.white = co : kings.black = co;
+      castleRight = false;
+      return okay;
+    }
+    else{
+      let newPlace = {
+        y: Number(index / 8 == 0 ? 1 : Math.ceil(index / 8)),
+        x: Number(index % 8 == 0 ? 8 : index % 8),
+      };
+      let old = pieces[sP.y][sP.x];
+      pieces[newPlace.y][newPlace.x] = new Piece(old.color,old.piece,Number(index));
+      pieces[sP.y][sP.x] = undefined;
+      if(selectedPiece.piece == "king"){
+        white? kings.white = index : kings.black = index;
+      }
+      okay = !(Check());
+      pieces[sP.y][sP.x] = old;
+      pieces[newPlace.y][newPlace.x] = takenPiece;
+      if(selectedPiece.piece == "king"){
+        white? kings.white = co : kings.black = co;
+      }
+      return okay;
+    }
+  }
+  function CheckMate(){
+    alert(white? "Black wins!": "White wins!");
+  }
+  function showHints(){
+    hints.forEach((element) => {
+      squares[element - 1].classList.add("hint");
+    });
   }
   function resetHints(){
     hints.forEach((element) => {
@@ -164,21 +634,19 @@ function main() {
     let x = squareIndex / 8 == 0 ? 1 : Math.ceil(squareIndex / 8);
     let y = squareIndex % 8 == 0 ? 8 : squareIndex % 8;
     let field = pieces[x][y];
-    return field == undefined ? false : field;
+    return field;
     
   }
   function refreshImages() {
     for (const piece in pieces) {
       pieces[piece].filter(notEmpty).forEach((p) => {
-        squares[
-          p.coordinate - 1
-        ].innerHTML = `<img src="pictures/${p.color}${p.piece}.png">`;
+        squares[p.coordinate - 1].innerHTML = `<img src="pictures/${p.color}${p.piece}.png">`;
       });
     }
 
     for (let i = 1; i <= 8; i++) {
       for (let j = 1; j <= 8; j++) {
-        if (!pieces[i][j]) {
+        if (pieces[i][j] == undefined) {
           squares[(i - 1) * 8 + (j - 1)].innerHTML = "";
         }
       }
@@ -186,6 +654,15 @@ function main() {
     function notEmpty(field) {
       return field != undefined;
     }
+  }
+  function resetColor(idName) {
+    let color;
+    for (let i = 0; i < rules.length; i++) {
+      if (rules[i].selectorText == `#${idName}`) {
+        color = rules[i].style.getPropertyValue("background-color");
+      }
+    }
+    return color;
   }
   function setBoard() {
     types.forEach((element) => {
@@ -195,7 +672,7 @@ function main() {
             pieces[7][i] = new Piece("white", "pawn", 6 * 8 + i);
             pieces[2][i] = new Piece("black", "pawn", 1 * 8 + i);
           }
-          pieces[3][4] = new Piece("white", element, 2 * 8 + 4);
+          
         case "rook":
           pieces[8][1] = new Piece("white", element, 7 * 8 + 1);
           pieces[1][1] = new Piece("black", element, 0 * 8 + 1);
@@ -219,9 +696,13 @@ function main() {
           pieces[1][5] = new Piece("black", element, 0 * 8 + 5);
       }
     });
-    refreshImages();
     squares.forEach((square) =>{
+      let index = square.getAttribute("cellIndex");
+      let col = index % 8 == 0 ? 8 : index % 8;
+      let row = index / 8 == 0 ? 1 : Math.ceil(index / 8);
+      square.setAttribute("style",`grid-area:${row}/${col}/${row}/${col}`);
       resetColor(square.getAttribute("id"));
     });
+    refreshImages();
   }
 }

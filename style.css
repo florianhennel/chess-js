@@ -5,7 +5,8 @@ body{
     align-items: center;
 }
 .hint{
-    background-color: pink !important;
+    background-color: thistle !important;
+    
 }
 #game h1{
     font-size: 55px;
@@ -13,11 +14,19 @@ body{
     text-align: center;
     margin:auto
 }
+#game{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
 #board{
     display: grid;
     grid-template-columns: auto auto auto auto auto auto auto auto;
     border: 1px solid black;
     text-align: center;
+    align-items: center;
+    justify-content: center;
 }
 #mezo{
     background-color:olivedrab;
@@ -28,11 +37,43 @@ body{
 .squares{
     height: 5rem;
     width: 5rem;
-    border: 0.1px solid black;
     line-height: 5rem;
-    cursor:grab;
+    cursor:pointer;
 }
 .squares img{
     width: 100%;
     height: 100%;
+}
+button{
+    width: 30%;
+}
+#pawnChoices{
+    background-color: darkcyan;
+    display: none;
+    flex-direction: column;
+    z-index: 10;
+}
+#pawnChoices:nth-child(1){
+    grid-area: 1/1/1/1;
+    transform:translateX(-100%);
+    cursor:pointer;
+}
+#pawnChoices:nth-child(2){
+    grid-area: 2/1/2/1;
+    transform:translateX(-100%);
+    cursor:pointer;
+}
+#pawnChoices:nth-child(3){
+    grid-area: 3/1/3/1;
+    transform:translateX(-100%);
+    cursor:pointer;
+}
+#pawnChoices:nth-child(4){
+    grid-area: 4/1/4/1;
+    transform:translateX(-100%);
+    cursor:pointer;
+}
+#choices{
+    width: 5rem;
+    height: 5rem;
 }
