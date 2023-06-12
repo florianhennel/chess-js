@@ -6,6 +6,7 @@ function main() {
       this.piece = piece;
       this.coordinate = coordinate;
       this.moved = 0;
+      this.enPassant = false;
     }
   }
   const squares = document.querySelectorAll(".squares");
@@ -36,13 +37,49 @@ function main() {
     Turn();
   }
    function Turn() {
-    console.log(white ? "Whites turn." : "Blacks turn.");
     console.log(`${white? "White":"Black"}s in check? ${Check()}`);
+    if (Check()) {
+      resetHints();
+      let prev = selectedPiece;
+      pieces.flat().forEach(p => {
+        if (p != undefined && p.color == (white?"white":"black")) {
+          selectedPiece = p;
+          switch (selectedPiece.piece) {
+            case "pawn":
+              pawnMove();
+              break;
+            case "rook":
+              rookMove();
+              break;
+            case "knight":
+              knightMove();
+              break;
+            case "bishop":
+              bishopMove();
+              break;
+            case "queen":
+              bishopMove();
+              rookMove();
+              break;
+            case "king":
+              kingMove();
+              break;
+          } 
+        }
+        hints = hints.filter(function (hint){
+          return tryHint(hint);
+        });
+      });
+      if (hints.length == 0) {
+        CheckMate();
+      }
+      selectedPiece = prev;
+    }
     squares.forEach((square) => {
       square.addEventListener("click", clickSquare);
     });
   }
-  async function clickSquare(event) {
+  function clickSquare(event) {
     resetHints();
     squares.forEach((square) => {
       square.removeEventListener("click", clickSquare);
@@ -53,10 +90,12 @@ function main() {
       if (white && selectedPiece.color == "white") {
         this.style.backgroundColor = "rgba(100%, 100%, 0%, 1)";
         movePiece();
+
       }
       else if(!white && selectedPiece.color == "black"){
         this.style.backgroundColor = "rgba(100%, 100%, 0%, 1)";
         movePiece();
+        
       }
       else{
         Turn();
@@ -67,9 +106,7 @@ function main() {
     }
   }
   function movePiece() {
-    console.log(selectedPiece.moved);
     switch (selectedPiece.piece) {
-      
       case "pawn":
         pawnMove();
         break;
@@ -88,10 +125,9 @@ function main() {
         break;
       case "king":
         kingMove();
-        castling();
+        Check()? undefined : castling();
         break;
     }
-    
     hints = hints.filter(function (hint){
       return tryHint(hint);
     });
@@ -99,8 +135,6 @@ function main() {
     squares.forEach((square) => {
       square.addEventListener("click", move);
     });
-    
-    
   }
   function kingMove() { 
     let kingHints = [];
@@ -135,7 +169,7 @@ function main() {
     if ((sP.y+1<=8&&sP.x+1<=8) && (pieces[sP.y+1][sP.x+1] == undefined || pieces[sP.y+1][sP.x+1].color == (white?"black":"white"))) {
       kingHints.push(co+9);
     }    
-    hints = kingHints;
+    hints.push(...kingHints);
   }
   function knightMove(){
     let co = selectedPiece.coordinate;
@@ -227,14 +261,13 @@ function main() {
   }
   function castling(){
     let co = selectedPiece.coordinate;
-    if (selectedPiece.moved == 0 && clickOnPiece(co-4).moved == 0) {
+    if (selectedPiece.moved == 0 && clickOnPiece(co-4) != undefined && clickOnPiece(co-4).moved == 0) {
       if(clickOnPiece(co-3) == undefined && clickOnPiece(co-2) == undefined && clickOnPiece(co-1) == undefined){
         hints.unshift(co-4);
         castleLeft = true;
-        
       }
     }
-    if(selectedPiece.moved == 0 && clickOnPiece(co+3).moved == 0){
+    if(selectedPiece.moved == 0 && clickOnPiece(co+3) != undefined && clickOnPiece(co+3).moved == 0){
       if(clickOnPiece(co+1) == undefined && clickOnPiece(co+2) == undefined){
         hints.unshift(co+3);
         castleRight = true;
@@ -335,10 +368,14 @@ function main() {
       pawnTake();
       let count = hints.length-1;
       if (hints.includes(co-9) && (pieces[sP.y-1][sP.x-1] == undefined || pieces[sP.y-1][sP.x-1].color == "white")) {
-        sP.x == 8 ? hints.pop() : hints.splice(count-1,1);
+        if(pieces[sP.y][sP.x-1] == undefined || pieces[sP.y][sP.x-1].color == "white" || !pieces[sP.y][sP.x-1].enPassant){
+          sP.x == 8 ? hints.pop() : hints.splice(count-1,1);
+        }
       }
       if(hints.includes(co-7) && (pieces[sP.y-1][sP.x+1] == undefined || pieces[sP.y-1][sP.x+1].color == "white")) {
-        hints.pop();
+        if(pieces[sP.y][sP.x+1] == undefined || pieces[sP.y][sP.x+1].color == "white" || !pieces[sP.y][sP.x+1].enPassant){
+          hints.pop();
+        }
       }
     }
     else{
@@ -351,10 +388,14 @@ function main() {
       pawnTake();
       let count = hints.length-1;
       if(hints.includes(co+7) && (pieces[sP.y+1][sP.x-1] == undefined || pieces[sP.y+1][sP.x-1].color == "black")) {
-        sP.x == 8 ? hints.pop() : hints.splice(count-1,1);
+        if(pieces[sP.y][sP.x-1] == undefined || pieces[sP.y][sP.x-1].color == "black" || !pieces[sP.y][sP.x-1].enPassant){
+          sP.x == 8 ? hints.pop() : hints.splice(count-1,1);
+        }
       }
       if (hints.includes(co+9) && (pieces[sP.y+1][sP.x+1] == undefined || pieces[sP.y+1][sP.x+1].color == "black")) {
-        hints.pop();
+        if(pieces[sP.y][sP.x+1] == undefined || pieces[sP.y][sP.x+1].color == "black" || !pieces[sP.y][sP.x+1].enPassant){
+          hints.pop();
+        }
       }
     }
   }
@@ -376,56 +417,27 @@ function main() {
     let defaultHints = hints;
     hints = [];
     let prev = selectedPiece;
-    pieces.forEach(row =>{
-      row.forEach(piece =>{
-        if(piece != undefined && piece.color == (white ? "black" : "white")){
-            selectedPiece = piece;
-            switch (piece.piece) {
-              case "pawn":
-                pawnTake();break;
-              case "rook":
-                rookMove();break;
-              case "knight":
-                knightMove();break;
-              case "bishop":
-                bishopMove();break;
-              case "queen":
-                bishopMove();
-                rookMove();
-                break;
-            }
-        }
-      });
-    });
-    const result= white? hints.includes(Number(kings.white)):hints.includes(Number(kings.black));
     
-    if (result) {
-      pieces.forEach(rows => {
-        rows.forEach(piece =>{
-          if(piece != undefined && piece.color == (white ? "white" : "black")){
-            selectedPiece = piece;
-            switch (piece.piece) {
-              case "pawn":
-                pawnTake();break;
-              case "rook":
-                rookMove();break;
-              case "knight":
-                knightMove();break;
-              case "bishop":
-                bishopMove();break;
-              case "queen":
-                bishopMove();
-                rookMove();
-                break;
-            }
+    pieces.flat().forEach(piece =>{
+      if(piece != undefined && piece.color == (white ? "black" : "white")){
+          selectedPiece = piece;
+          switch (piece.piece) {
+            case "pawn":
+              pawnTake();break;
+            case "rook":
+              rookMove();break;
+            case "knight":
+              knightMove();break;
+            case "bishop":
+              bishopMove();break;
+            case "queen":
+              bishopMove();
+              rookMove();
+              break;
           }
-        })
-      });
-      
-    }
-    if (hints.length == 0) {
-      CheckMate();
-    }
+      }
+    });
+    const result= white? hints.includes(Number(kings.white)):hints.includes(Number(kings.black));    
     selectedPiece = prev;
     hints = defaultHints;
     return result;
@@ -440,51 +452,53 @@ function main() {
       y: co / 8 == 0 ? 1 : Math.ceil(co / 8),
       x: co % 8 == 0 ? 8 : co % 8,
     };
-    if ((selectedPiece.piece == "king" && clickOnPiece(index).piece == "rook") && clickOnPiece(index) != undefined) {
-      let takenPiece = clickOnPiece(index);
-      let left = co>takenPiece.coordinate;
-      if (left) {
-        let king = pieces[sP.y][sP.x];
-        let rook = pieces[sP.y][sP.x-4]
-        pieces[sP.y][sP.x-2] = king;
-        pieces[sP.y][sP.x-1] = rook;
-        pieces[sP.y][sP.x] = undefined;
-        pieces[sP.y][sP.x-4] = undefined;
-
-        white? kings.white = co-2 : kings.black = co-2;
-        pieces[sP.y][sP.x-2].coordinate = co-2
-        pieces[sP.y][sP.x-1].coordinate = co-1;
+     if (hints.includes(Number(index))) {
+      if (clickOnPiece(index) != undefined && (selectedPiece.piece == "king" && clickOnPiece(index).piece == "rook")) {
+        let takenPiece = clickOnPiece(index);
+        let left = co>takenPiece.coordinate;
+        if (left) {
+          let king = pieces[sP.y][sP.x];
+          let rook = pieces[sP.y][sP.x-4]
+          pieces[sP.y][sP.x-2] = king;
+          pieces[sP.y][sP.x-1] = rook;
+          pieces[sP.y][sP.x] = undefined;
+          pieces[sP.y][sP.x-4] = undefined;
+  
+          white? kings.white = co-2 : kings.black = co-2;
+          pieces[sP.y][sP.x-2].coordinate = co-2
+          pieces[sP.y][sP.x-1].coordinate = co-1;
+          pieces[sP.y][sP.x-2].moved = 1
+          pieces[sP.y][sP.x-1].moved = 1;
+        }
+        else{
+          let king = pieces[sP.y][sP.x];
+          let rook = pieces[sP.y][sP.x+3]
+          pieces[sP.y][sP.x+2] = king;
+          pieces[sP.y][sP.x+1] = rook;
+          pieces[sP.y][sP.x] = undefined;
+          pieces[sP.y][sP.x+3] = undefined;
+  
+          white? kings.white = co+2 : kings.black = co+2;
+          pieces[sP.y][sP.x+2].coordinate = co+2
+          pieces[sP.y][sP.x+1].coordinate = co+1;
+          pieces[sP.y][sP.x+2].moved = 1
+          pieces[sP.y][sP.x+1].moved = 1;
+        }
+        
+        refreshImages();
+        resetHints();
+        squares[co-1].setAttribute("style",null);
+        white = !white;
+        console.log(pieces);
+        Turn();
       }
       else{
-        let king = pieces[sP.y][sP.x];
-        let rook = pieces[sP.y][sP.x+3]
-        pieces[sP.y][sP.x+2] = king;
-        pieces[sP.y][sP.x+1] = rook;
-        pieces[sP.y][sP.x] = undefined;
-        pieces[sP.y][sP.x+3] = undefined;
-
-        white? kings.white = co+2 : kings.black = co+2;
-        pieces[sP.y][sP.x+2].coordinate = co+2
-        pieces[sP.y][sP.x+1].coordinate = co+1;
-      }
-      refreshImages();
-      refreshImages();
-      resetHints();
-      squares[co-1].setAttribute("style",null);
-      if(selectedPiece.piece == "king"){
-        white ? kings.white = index : kings.black = index;
-      }
-      white = !white;
-      console.log(pieces);
-      Turn();
-    }
-    else if (hints.includes(Number(index))) {
-      let newPlace = {
-        y: Number(index / 8 == 0 ? 1 : Math.ceil(index / 8)),
-        x: Number(index % 8 == 0 ? 8 : index % 8),
-      };
-      let old = pieces[sP.y][sP.x];
-      if ((index <9 || index > 56) && selectedPiece.piece == "pawn"){
+        let newPlace = {
+          y: Number(index / 8 == 0 ? 1 : Math.ceil(index / 8)),
+          x: Number(index % 8 == 0 ? 8 : index % 8),
+        };
+        let old = pieces[sP.y][sP.x];
+        if ((index <9 || index > 56) && selectedPiece.piece == "pawn"){
         let i = 5;
         pawnChoices.forEach(div =>{
           div.style.display = "flex";  
@@ -500,24 +514,44 @@ function main() {
           div.style.display = "none";
         });
         
-      }
-      else{
-        
-        pieces[newPlace.y][newPlace.x] = old;
-        pieces[newPlace.y][newPlace.x].coordinate = Number(index);
-        pieces[newPlace.y][newPlace.x].moved= 1+pieces[newPlace.y][newPlace.x].moved;
-      }
-      pieces[sP.y][sP.x] = undefined;
+        }
+        else{
+          if (selectedPiece != undefined && selectedPiece.piece == "pawn" && clickOnPiece(co-1) != undefined && clickOnPiece(co-1).enPassant && index == (white?(co-9):(co+7))){
+            pieces[sP.y][sP.x-1] = undefined;
+          }
+          else if(selectedPiece != undefined && selectedPiece.piece == "pawn" && (clickOnPiece(co+1) != undefined &&clickOnPiece(co+1).enPassant && index == (white?(co-7):(co+9)))){
+            pieces[sP.y][sP.x+1] = undefined;
+          }
+          pieces[newPlace.y][newPlace.x] = old;
+          pieces[newPlace.y][newPlace.x].coordinate = Number(index);
+          pieces[newPlace.y][newPlace.x].moved= 1+pieces[newPlace.y][newPlace.x].moved;
+          if (Math.abs(newPlace.y-sP.y) == 2 && selectedPiece.piece == "pawn") {
+            if (pieces[newPlace.y][newPlace.x-1]!= undefined && pieces[newPlace.y][newPlace.x-1].color == (white?"black":"white")) {
+              pieces[newPlace.y][newPlace.x].enPassant = true;
+            }
+            else if(pieces[newPlace.y][newPlace.x+1]!= undefined && pieces[newPlace.y][newPlace.x+1].color == (white?"black":"white")){
+              pieces[newPlace.y][newPlace.x].enPassant = true;
+            }
+          }
+        }
+      
+        pieces[sP.y][sP.x] = undefined;
 
-      refreshImages();
-      resetHints();
-      squares[co-1].setAttribute("style",null);
-      if(selectedPiece.piece == "king"){
-        white ? kings.white = index : kings.black = index;
+        refreshImages();
+        resetHints();
+        squares[co-1].setAttribute("style",null);
+        if(selectedPiece.piece == "king"){
+          white ? kings.white = index : kings.black = index;
+        }
+        pieces.flat().filter(p =>{
+          p!=undefined && p.piece == "pawn";
+        }).forEach(pawn=>{
+          pawn.enPassant = false;
+        })
+        white = !white;
+        refreshImages();
+        Turn();
       }
-      white = !white;
-      Turn();
-
     }
     else{
       resetHints();
@@ -554,6 +588,7 @@ function main() {
       x: co % 8 == 0 ? 8 : co % 8,
     };
     let okay;
+    
     if (castleLeft) {
       let king = pieces[sP.y][sP.x];
       let rook = pieces[sP.y][sP.x-4]
@@ -705,4 +740,12 @@ function main() {
     });
     refreshImages();
   }
+  function shopPieces(){
+    pieces.forEach(rows =>{
+      console.log(rows);
+    })
+  }
+  btn.addEventListener("click",()=>{
+    shopPieces();
+  })
 }
