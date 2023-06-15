@@ -10,9 +10,8 @@ function main() {
     }
   }
   const squares = document.querySelectorAll(".squares");
-  const btn = document.getElementById("btn");
-  const board = document.getElementById("board");
-  const status = document.getElementById("status");
+  const start = document.getElementById("start");
+  start.innerHTML = "Start";
   const types = ["pawn", "rook", "knight", "bishop", "queen", "king"];
   const styleSheet = document.styleSheets[0];
   const pawnChoices = document.querySelectorAll("#pawnChoices");
@@ -28,53 +27,69 @@ function main() {
   }
   let castleLeft = false;
   let castleRight = false;
+  let blackTime =300;
+  let whiteTime = 300;
+  let firstMove = true;
+  const blackClock = document.getElementById("blackClock");
+  const whiteClock = document.getElementById("whiteClock");
+  var timer = setInterval(countDown,1000);
 
-  startGame();
+
+  setBoard();
+  start.addEventListener("click",startGame);
 
   function startGame() {
+    start.removeEventListener("click",startGame);
+    firstMove = false;
+    start.innerHTML = "Restart";
+    start.addEventListener("click",()=>{
+      clearInterval(timer);
+      main();
+    });
     resetHints();
-    setBoard();
     Turn();
   }
    function Turn() {
     console.log(`${white? "White":"Black"}s in check? ${Check()}`);
-    if (Check()) {
-      resetHints();
-      let prev = selectedPiece;
-      pieces.flat().forEach(p => {
-        if (p != undefined && p.color == (white?"white":"black")) {
-          selectedPiece = p;
-          switch (selectedPiece.piece) {
-            case "pawn":
-              pawnMove();
-              break;
-            case "rook":
-              rookMove();
-              break;
-            case "knight":
-              knightMove();
-              break;
-            case "bishop":
-              bishopMove();
-              break;
-            case "queen":
-              bishopMove();
-              rookMove();
-              break;
-            case "king":
-              kingMove();
-              break;
-          } 
+    resetHints();
+    let prev = selectedPiece;
+    let mate = [];
+    pieces.flat().forEach(p => {
+      if (p != undefined && p.color == (white?"white":"black")) {
+        selectedPiece = p;
+        hints = [];
+        switch (selectedPiece.piece) {
+          case "pawn":
+            pawnMove();
+            break;
+          case "rook":
+            rookMove();
+            break;
+          case "knight":
+            knightMove();
+            break;
+          case "bishop":
+            bishopMove();
+            break;
+          case "queen":
+            bishopMove();
+            rookMove();
+            break;
+          case "king":
+            kingMove();
+            break;
         }
-        hints = hints.filter(function (hint){
+        mate.push(...hints.filter(function (hint){
           return tryHint(hint);
-        });
-      });
-      if (hints.length == 0) {
-        CheckMate();
+        }));
+          
       }
-      selectedPiece = prev;
+        
+    });
+    if (mate.length == 0) {
+      Check()?CheckMate():Draw();
     }
+    selectedPiece = prev;
     squares.forEach((square) => {
       square.addEventListener("click", clickSquare);
     });
@@ -352,6 +367,7 @@ function main() {
     }
   }
   function pawnMove() {
+    
     let co = selectedPiece.coordinate;
     let sP = {
       y: co / 8 == 0 ? 1 : Math.ceil(co / 8),
@@ -489,7 +505,7 @@ function main() {
         resetHints();
         squares[co-1].setAttribute("style",null);
         white = !white;
-        console.log(pieces);
+        
         Turn();
       }
       else{
@@ -642,7 +658,9 @@ function main() {
       if(selectedPiece.piece == "king"){
         white? kings.white = index : kings.black = index;
       }
+
       okay = !(Check());
+
       pieces[sP.y][sP.x] = old;
       pieces[newPlace.y][newPlace.x] = takenPiece;
       if(selectedPiece.piece == "king"){
@@ -652,18 +670,38 @@ function main() {
     }
   }
   function CheckMate(){
-    alert(white? "Black wins!": "White wins!");
+    console.log(white? "Black wins!": "White wins!");
+    clearInterval(timer);
+    squares.forEach((square)=>{
+      square.removeEventListener("click",clickSquare);
+    })
+  }
+  function Draw(){
+    console.log("Draw");
+    clearInterval(timer);
+    squares.forEach((square)=>{
+      square.removeEventListener("click",clickSquare);
+    })
   }
   function showHints(){
     hints.forEach((element) => {
-      squares[element - 1].classList.add("hint");
+      if (clickOnPiece(element) != undefined && clickOnPiece(element).color == (white?"black":"white")) {
+        squares[element - 1].classList.add("hint2");
+      }
+      else if(clickOnPiece(element) == undefined && element>8 && element<57 &&clickOnPiece(element+(white?8:(-8))) != undefined && clickOnPiece(element+(white?8:(-8))).enPassant == true){
+        squares[element - 1].classList.add("hint2");
+      }
+      else{
+        squares[element - 1].classList.add("hint");
+      }  
     });
+    
   }
   function resetHints(){
     hints.forEach((element) => {
-      squares[element - 1].classList.remove("hint");
+      squares[element - 1].classList.remove("hint","hint2");
     });
-  hints = [];
+    hints = [];
   }
   function clickOnPiece(squareIndex) {
     let x = squareIndex / 8 == 0 ? 1 : Math.ceil(squareIndex / 8);
@@ -700,6 +738,7 @@ function main() {
     return color;
   }
   function setBoard() {
+    pieces = [[], [], [], [], [], [], [], [], []];
     types.forEach((element) => {
       switch (element) {
         case "pawn":
@@ -739,13 +778,28 @@ function main() {
       resetColor(square.getAttribute("id"));
     });
     refreshImages();
+    whiteClock.innerHTML = toMinutes(whiteTime);
+    blackClock.innerHTML = toMinutes(blackTime);
+  }
+  function toMinutes(t){
+      let minutes = Math.floor(Number(t)/60);
+      let seconds = (Number(t)%60)
+      return `${minutes} : ${seconds/10<1?"0"+seconds:seconds}`;
+    }
+  function countDown(){
+    
+    if (!firstMove) {
+      white?whiteTime--:blackTime--;
+      white?whiteClock.innerHTML = toMinutes(whiteTime) : blackClock.innerHTML = toMinutes(blackTime);
+    }
+    if (whiteTime == 0 || blackTime == 0) {
+      clearInterval(timer);
+      alert(`Time's up! ${white?"Black":White} wins!"`);
+    }
   }
   function shopPieces(){
     pieces.forEach(rows =>{
       console.log(rows);
     })
   }
-  btn.addEventListener("click",()=>{
-    shopPieces();
-  })
 }
