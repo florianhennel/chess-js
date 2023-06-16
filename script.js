@@ -13,10 +13,8 @@ function main() {
   const start = document.getElementById("start");
   start.innerHTML = "Start";
   const types = ["pawn", "rook", "knight", "bishop", "queen", "king"];
-  const styleSheet = document.styleSheets[0];
   const pawnChoices = document.querySelectorAll("#pawnChoices");
   const choices = document.querySelectorAll("#choices");
-  var rules = styleSheet.cssRules || styleSheet.rules;
   let pieces = [[], [], [], [], [], [], [], [], []];
   let hints = [];
   let white = true;
@@ -44,7 +42,7 @@ function main() {
     start.innerHTML = "Restart";
     start.addEventListener("click",()=>{
       clearInterval(timer);
-      main();
+      location.reload();
     });
     resetHints();
     Turn();
@@ -469,7 +467,7 @@ function main() {
       x: co % 8 == 0 ? 8 : co % 8,
     };
      if (hints.includes(Number(index))) {
-      if (clickOnPiece(index) != undefined && (selectedPiece.piece == "king" && clickOnPiece(index).piece == "rook")) {
+      if (clickOnPiece(index) != undefined && (selectedPiece.piece == "king" && clickOnPiece(index).piece == "rook" && clickOnPiece(index).color == (white?"white":"black"))) {
         let takenPiece = clickOnPiece(index);
         let left = co>takenPiece.coordinate;
         if (left) {
@@ -728,17 +726,7 @@ function main() {
       return field != undefined;
     }
   }
-  function resetColor(idName) {
-    let color;
-    for (let i = 0; i < rules.length; i++) {
-      if (rules[i].selectorText == `#${idName}`) {
-        color = rules[i].style.getPropertyValue("background-color");
-      }
-    }
-    return color;
-  }
   function setBoard() {
-    pieces = [[], [], [], [], [], [], [], [], []];
     types.forEach((element) => {
       switch (element) {
         case "pawn":
@@ -775,7 +763,6 @@ function main() {
       let col = index % 8 == 0 ? 8 : index % 8;
       let row = index / 8 == 0 ? 1 : Math.ceil(index / 8);
       square.setAttribute("style",`grid-area:${row}/${col}/${row}/${col}`);
-      resetColor(square.getAttribute("id"));
     });
     refreshImages();
     whiteClock.innerHTML = toMinutes(whiteTime);
